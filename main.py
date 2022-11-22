@@ -1,6 +1,8 @@
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
+import math
+from random import random
 
 
 class DrawAt:
@@ -30,6 +32,46 @@ class Object:
                 for vertex_index in edge:
                     glVertex3f(*self._vertices[vertex_index])
                 glEnd()
+
+
+def terrain_height(x, z):
+    # -2.5, 3, 5
+    if math.fabs(x - (-2.5)) < 4 and math.fabs(z - 5) < 4:
+        return -1
+    return 0.5 * (math.sin(x + z)**2) - 1
+
+
+def generate_terrain(start=-10, end=10, steps=9):
+    step = (end - start) / steps
+
+    # Generate vertices
+    vertices = []
+    for z_i in range(steps):
+        vertices.extend(
+            (
+                start + x_i * step,
+                terrain_height(start + x_i * step, start + z_i * step),
+                start + z_i * step,
+            ) for x_i in range(steps)
+        )
+
+    # Generate polygons
+    polygons = []
+    for tz_i in range(steps - 1):
+        base_offset = tz_i * steps
+        next_offset = (tz_i + 1) * steps
+        for tx_i in range(steps - 1):
+            polygons.append(
+                (base_offset + tx_i + 1, next_offset + tx_i, base_offset + tx_i)
+            )
+            polygons.append(
+                (base_offset + tx_i + 1, next_offset + tx_i + 1, next_offset + tx_i)
+            )
+
+    return vertices, polygons
+
+
+TERRAIN_POINTS, TERRAIN_POLYGONS = generate_terrain()
 
 
 def background():
@@ -83,16 +125,35 @@ def depth():
     glDepthFunc(GL_LESS)
 
 
+def draw_terrain():
+    glPushMatrix()
+    glLoadIdentity()
+
+    for polygon in TERRAIN_POLYGONS:
+        # glBegin(GL_LINES)
+        glBegin(GL_TRIANGLES)
+        glColor3f(0.0, 1.0 - 0.3 * random(), 0.0)
+        for point_index in polygon:
+            point = TERRAIN_POINTS[point_index]
+            glVertex3f(*point)
+        glEnd()
+
+    glPopMatrix()
+
+
 def display():
     background()
     perspective()
     lookat()
+
+    draw_terrain()
 
     cube = Object(
         vertices=[(-1, 0, 1), (-1, 2, 1), (-1, 0, 2), (-1, 2, 2)],
         edges=[(2, 1, 0), (2, 3, 1)],
     )
 
+    glColor3f(0.0, 1.0, 1.0)
     cube.draw(0, 0, 0)
     # light()
     depth()
