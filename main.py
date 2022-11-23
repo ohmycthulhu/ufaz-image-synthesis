@@ -38,10 +38,14 @@ def terrain_height(x, z):
     # -2.5, 3, 5
     if math.fabs(x - (-2.5)) < 4 and math.fabs(z - 5) < 4:
         return -1
-    return 0.5 * (math.sin(x + z)**2) - 1
+    return 0.25 * ((x + z) % 5) - 1
 
 
-def generate_terrain(start=-10, end=10, steps=9):
+def terrain_color(x, y, z):
+    return 0, 0.5 + math.cos(x + z)**2 / 2, 0
+
+
+def generate_terrain(start=-100, end=100, steps=40):
     step = (end - start) / steps
 
     # Generate vertices
@@ -126,19 +130,14 @@ def depth():
 
 
 def draw_terrain():
-    glPushMatrix()
-    glLoadIdentity()
-
     for polygon in TERRAIN_POLYGONS:
         # glBegin(GL_LINES)
         glBegin(GL_TRIANGLES)
-        glColor3f(0.0, 1.0 - 0.3 * random(), 0.0)
         for point_index in polygon:
             point = TERRAIN_POINTS[point_index]
+            glColor3f(*terrain_color(*point))
             glVertex3f(*point)
         glEnd()
-
-    glPopMatrix()
 
 
 def display():
