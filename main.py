@@ -11,9 +11,49 @@ car_distance = 0
 car_speed = 0.1
 
 
+def terrain_height(x, z):
+    # -2.5, 3, 5
+    if math.fabs(x) < 6 and math.fabs(z) < 4:
+        return 0
+    return 1 * (math.sin((x + z) / 10 * math.pi)**2)
+
+
+def generate_terrain(start=-20, end=20, steps=40):
+    step = (end - start) / steps
+
+    # Generate vertices
+    vertices = []
+    for z_i in range(steps):
+        vertices.extend(
+            (
+                start + x_i * step,
+                terrain_height(start + x_i * step, start + z_i * step),
+                start + z_i * step,
+            ) for x_i in range(steps)
+        )
+
+    # Generate polygons
+    polygons = []
+    for tz_i in range(steps - 1):
+        base_offset = tz_i * steps
+        next_offset = (tz_i + 1) * steps
+        for tx_i in range(steps - 1):
+            polygons.append(
+                (base_offset + tx_i + 1, next_offset + tx_i, base_offset + tx_i)
+            )
+            polygons.append(
+                (base_offset + tx_i + 1, next_offset + tx_i + 1, next_offset + tx_i)
+            )
+
+    return vertices, polygons
+
+
+TERRAIN_POINTS, TERRAIN_POLYGONS = generate_terrain()
+
+
 def background():
     # Set the background color of the window to black
-    glClearColor(0, 0, 0, 0)
+    glClearColor(0.1, 0.1, 0.5, 0)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
 
@@ -25,7 +65,7 @@ def perspective():
     # _,_,width,height = glGetDoublev(GL_VIEWPORT)
     width = 500
     height = 500
-    gluPerspective(40, 1, 4, 20)
+    gluPerspective(40, 1, 4, 40)
 
 
 def lookat():
@@ -43,16 +83,16 @@ def lookat():
 
 def light():
     # Setup light 0
-    glLightfv(GL_LIGHT0, GL_AMBIENT, GLfloat_4(0.2, 0.2, 0.1, 1.0))
-    glLightfv(GL_LIGHT0, GL_DIFFUSE, GLfloat_4(0.8, 0.8, 0.7, 1.0))
+    glLightfv(GL_LIGHT0, GL_AMBIENT, GLfloat_4(0.2, 0.2, 0.2, .0))
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, GLfloat_4(0.8, 0.8, 0.8, .0))
     glLightfv(GL_LIGHT0, GL_SPECULAR, GLfloat_4(1.0, 1.0, 1.0, 1.0))
-    glLightfv(GL_LIGHT0, GL_POSITION, GLfloat_4(0.0, 2, 7.0, 0.0))
+    glLightfv(GL_LIGHT0, GL_POSITION, GLfloat_4(0.0, 1, 3.0, 0.0))
 
     # Setup light 1
-    glLightfv(GL_LIGHT1, GL_AMBIENT, GLfloat_4(0.1, 0, 0, 1.0))
-    glLightfv(GL_LIGHT1, GL_DIFFUSE, GLfloat_4(0.2, 0, 0, 0.5))
+    glLightfv(GL_LIGHT1, GL_AMBIENT, GLfloat_4(0., 0., 0., 1.0))
+    glLightfv(GL_LIGHT1, GL_DIFFUSE, GLfloat_4(0.2, 0.2, 0.2, 0.5))
     glLightfv(GL_LIGHT1, GL_SPECULAR, GLfloat_4(0.0, 0.0, 0.0, 1.0))
-    glLightfv(GL_LIGHT1, GL_POSITION, GLfloat_4(0.0, -7.0, 0.0))
+    glLightfv(GL_LIGHT1, GL_POSITION, GLfloat_4(0.0, 4.0, -2.0))
 
     # Enable lighting
     glLightModelfv(GL_LIGHT_MODEL_AMBIENT, GLfloat_4(0.2, 0.2, 0.2, 1.0))
@@ -67,34 +107,59 @@ def depth():
     glDepthFunc(GL_LESS)
 
 
-def coneMaterial():
-    # Setup material for cone
+def fog():
+    glEnable(GL_FOG)
+    glFogf(GL_FOG_MODE, GL_LINEAR)
+    glFogfv(GL_FOG_COLOR, (1, 1, 1))
+    glFogf(GL_FOG_START, 0.0)
+    glFogf(GL_FOG_END, 15)
+
+
+def terrainMaterial():
+    # Setup material for terrain
+    glMaterialfv(GL_FRONT, GL_AMBIENT, GLfloat_4(0, 0.325, 0, 0.0))
+    glMaterialfv(GL_FRONT, GL_DIFFUSE, GLfloat_4(0.1, 0.675, 0.1, 1.0))
+    glMaterialfv(GL_FRONT, GL_SPECULAR, GLfloat_4(0.5, 0.5, 1.0, 1.0))
+
+
+def homeMaterial():
+    # Setup material for home
     glMaterialfv(GL_FRONT, GL_AMBIENT, GLfloat_4(0.125, 0.125, 0.32, 0.0))
     glMaterialfv(GL_FRONT, GL_DIFFUSE, GLfloat_4(0.875, 0.875, 0.68, 1.0))
     glMaterialfv(GL_FRONT, GL_SPECULAR, GLfloat_4(0.0, 0.0, 1.0, 1.0))
     glMaterialfv(GL_FRONT, GL_SHININESS, GLfloat(10.0))
 
 
-def cubeMaterial():
-    # Setup material for cone
+def carMaterial():
+    # Setup material for car
     glMaterialfv(GL_FRONT, GL_AMBIENT, GLfloat_4(0.125, 0.125, 0.32, 0.0))
     glMaterialfv(GL_FRONT, GL_DIFFUSE, GLfloat_4(0.875, 0.875, 0.68, 1.0))
     glMaterialfv(GL_FRONT, GL_SPECULAR, GLfloat_4(0.0, 1.0, 1.0, 0.0))
     glMaterialfv(GL_FRONT, GL_SHININESS, GLfloat(25.0))
 
 
+def terrain():
+    terrainMaterial()
+    for polygon in TERRAIN_POLYGONS:
+        glBegin(GL_TRIANGLES)
+        for point_index in polygon:
+            point = TERRAIN_POINTS[point_index]
+            glVertex3f(*point)
+        glEnd()
+
+
 def drawHome():
+    homeMaterial()
+
     glPushMatrix()
 
-    glTranslate(0, 0, -0.5)
+    glTranslate(0, 1, -0.5)
     glutSolidCube(2)
+
     drawCone(1.5, 1, 16, 8)
     drawChimney(0.25)
 
     glPopMatrix()
-
-def drawCube(size):
-    glutSolidCube(size)
 
 
 def drawCone(radius, height, slices, stacks):
@@ -114,8 +179,10 @@ def drawChimney(size):
 
 
 def drawCar():
+    carMaterial()
+
     glPushMatrix()
-    glTranslatef(car_distance, 0, 2.5)  # Car position
+    glTranslatef(car_distance, (.5+.1) / 2, 2.5)  # Car position
 
     # Car body
     glPushMatrix()
@@ -156,6 +223,21 @@ def drawCar():
     glPopMatrix()
 
 
+def display():
+    background()
+    perspective()
+    lookat()
+    light()
+    depth()
+    fog()
+
+    terrain()
+    drawHome()
+    drawCar()
+
+    glutSwapBuffers()
+
+
 def idle_func():
     global car_distance, car_speed
 
@@ -184,23 +266,9 @@ def on_keydown(key, *args):
     elif key == GLUT_KEY_DOWN:
         new_distance += 0.1
 
-    camera_distance = max(min(new_distance, 10), 3)
+    camera_distance = max(min(new_distance, 15), 5)
 
     glutPostRedisplay()
-
-
-
-def display():
-    background()
-    perspective()
-    lookat()
-    light()
-    depth()
-    drawHome()
-    drawCar()
-    coneMaterial()
-    cubeMaterial()
-    glutSwapBuffers()
 
 
 # Initialize GLUT
