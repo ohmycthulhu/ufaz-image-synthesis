@@ -17,14 +17,14 @@ def perspective():
     # _,_,width,height = glGetDoublev(GL_VIEWPORT)
     width = 500
     height = 500
-    gluPerspective(40,1,4,20)
+    gluPerspective(40, 1, 4, 20)
 
 
 def lookat():
     # look point to the model
     glMatrixMode(GL_MODELVIEW)
     glLoadIdentity()
-    gluLookAt(5,5,5,0,0,0,0,1,0)
+    gluLookAt(5, 5, 5, 0, 0, 0, 0, 1, 0)
 
 
 def light():
@@ -69,56 +69,75 @@ def cubeMaterial():
     glMaterialfv(GL_FRONT, GL_SHININESS, GLfloat(25.0))
 
 
-def drawCube(size):
-    #draw cube
+def drawHome():
     glPushMatrix()
-    glutSolidCube(size)
+
+    glTranslate(0, 0, -0.5)
+    glutSolidCube(2)
+    drawCone(1.5, 1, 16, 8)
+    drawChimney(0.25)
+
     glPopMatrix()
 
+def drawCube(size):
+    glutSolidCube(size)
+
+
 def drawCone(radius, height, slices, stacks):
-    #draw Cone
-    glTranslatef(0,1,0)
     glPushMatrix()
-    glRotatef(-90,1,0,0)
+    glTranslatef(0, 1, 0)
+    glRotatef(-90, 1, 0, 0)
     glutSolidCone(radius, height, slices, stacks)
     glPopMatrix()
 
 
 def drawChimney(size):
-    #draw Chimney
-    glTranslatef(.75,.5,-.75)
     glPushMatrix()
-    glScalef(1,3,1)
+    glTranslatef(0.5, 1.5, -0.5)
+    glScalef(1, 4, 1)
     glutSolidCube(size)
     glPopMatrix()
 
 
 def drawCar():
-
-    glTranslatef(0,-1,3.5)
     glPushMatrix()
+    glTranslatef(0, 0, 2.5)  # Car position
 
-    #Car body
+    # Car body
     glPushMatrix()
-    glScalef(2,.5,1)
+    glScalef(2, .5, 1)
     glutSolidCube(.5)
     glPopMatrix()
-    glTranslatef(0,0,.25)
-    glPushMatrix()
-    glTranslatef(-.4,-.2,0)
 
-    #wheel
-    glutSolidTorus(.05,.1,8,8)
-    glTranslatef(.8,0,0)
-    glutSolidTorus(.05,.1,8,8)
-    glPopMatrix()
-    glTranslatef(0,0,-.5)
+    # wheel
     glPushMatrix()
-    glTranslatef(-.4,-.2,0)
-    glutSolidTorus(.05,.1,8,8)
-    glTranslatef(.8,0,0)
-    glutSolidTorus(.05,.1,8,8)
+    glTranslatef(0, 0, .25)
+
+    glPushMatrix()
+    glTranslatef(-.4, -.2, 0)
+    glutSolidTorus(.05, .1, 8, 8)
     glPopMatrix()
+
+    glPushMatrix()
+    glTranslatef(.4, -.2, 0)
+    glutSolidTorus(.05, .1, 8, 8)
+    glPopMatrix()
+
+    glPopMatrix()
+
+    glPushMatrix()
+    glTranslatef(0, 0, -.25)
+
+    glPushMatrix()
+    glTranslatef(-.4, -.2, 0)
+    glutSolidTorus(.05, .1, 8, 8)
+    glPopMatrix()
+
+    glPushMatrix()
+    glTranslatef(.4, -.2, 0)
+    glutSolidTorus(.05, .1, 8, 8)
+    glPopMatrix()
+
     glPopMatrix()
 
 
@@ -128,14 +147,11 @@ def display():
     lookat()
     light()
     depth()
-    drawCube(2)
-    drawCone(1.5,1,16,8)
-    drawChimney(0.25)
+    drawHome()
     drawCar()
     coneMaterial()
     cubeMaterial()
     glutSwapBuffers()
-
 
 
 # Initialize GLUT
