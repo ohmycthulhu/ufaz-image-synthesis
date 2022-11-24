@@ -2,6 +2,14 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
 
+import math
+import time
+
+camera_rot_angle = math.pi / 4
+camera_distance = 5 * math.sqrt(2)
+car_distance = 0
+car_speed = 0.1
+
 
 def background():
     # Set the background color of the window to black
@@ -24,7 +32,13 @@ def lookat():
     # look point to the model
     glMatrixMode(GL_MODELVIEW)
     glLoadIdentity()
-    gluLookAt(5, 5, 5, 0, 0, 0, 0, 1, 0)
+    gluLookAt(
+        camera_distance * math.sin(camera_rot_angle),
+        5,
+        camera_distance * math.cos(camera_rot_angle),
+        0, 0, 0,
+        0, 1, 0
+    )
 
 
 def light():
@@ -101,7 +115,7 @@ def drawChimney(size):
 
 def drawCar():
     glPushMatrix()
-    glTranslatef(0, 0, 2.5)  # Car position
+    glTranslatef(car_distance, 0, 2.5)  # Car position
 
     # Car body
     glPushMatrix()
@@ -139,6 +153,41 @@ def drawCar():
     glPopMatrix()
 
     glPopMatrix()
+    glPopMatrix()
+
+
+def idle_func():
+    global car_distance, car_speed
+
+    car_distance += car_speed
+
+    if car_distance > 5:
+        car_speed = -abs(car_speed)
+    elif car_distance < -5:
+        car_speed = abs(car_speed)
+
+    glutPostRedisplay()
+    time.sleep(0.016)
+
+
+def on_keydown(key, *args):
+    global camera_rot_angle, camera_distance
+    if key == GLUT_KEY_RIGHT:
+        camera_rot_angle += 0.1
+    elif key == GLUT_KEY_LEFT:
+        camera_rot_angle -= 0.1
+
+    new_distance = camera_distance
+
+    if key == GLUT_KEY_UP:
+        new_distance -= 0.1
+    elif key == GLUT_KEY_DOWN:
+        new_distance += 0.1
+
+    camera_distance = max(min(new_distance, 10), 3)
+
+    glutPostRedisplay()
+
 
 
 def display():
@@ -173,6 +222,8 @@ glutInitWindowPosition(50, 50)
 
 # Define display callback
 glutDisplayFunc(display)
+glutIdleFunc(idle_func)
+glutSpecialFunc(on_keydown)
 
 # Begin event loop
 glutMainLoop()
