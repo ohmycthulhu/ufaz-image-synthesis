@@ -6,7 +6,8 @@ import math
 import time
 
 camera_rot_angle = math.pi / 4
-camera_distance = 5 * math.sqrt(2)
+min_distance, max_distance = 3, 15
+camera_distance = (max_distance + min_distance) / 2
 car_distance = 0
 car_speed = 0.1
 
@@ -22,6 +23,7 @@ def generate_terrain(start=-20, end=20, steps=40):
     step = (end - start) / steps
 
     # Generate vertices
+    # Vertices are generated as (1, 0, 9), (1, 9, 10) when each row contains 9 vertices
     vertices = []
     for z_i in range(steps):
         vertices.extend(
@@ -38,6 +40,7 @@ def generate_terrain(start=-20, end=20, steps=40):
         base_offset = tz_i * steps
         next_offset = (tz_i + 1) * steps
         for tx_i in range(steps - 1):
+            # Generate two triangles to complete rectangle
             polygons.append(
                 (base_offset + tx_i + 1, next_offset + tx_i, base_offset + tx_i)
             )
@@ -52,7 +55,7 @@ TERRAIN_POINTS, TERRAIN_POLYGONS = generate_terrain()
 
 
 def background():
-    # Set the background color of the window to black
+    # Set the background color of the window to dark blue
     glClearColor(0.1, 0.1, 0.5, 0)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
@@ -61,10 +64,6 @@ def perspective():
     # establish the projection matrix (perspective)
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
-    # Get the viewport to use it in choosing the aspect ratio of gluPerspective
-    # _,_,width,height = glGetDoublev(GL_VIEWPORT)
-    width = 500
-    height = 500
     gluPerspective(40, 1, 4, 40)
 
 
@@ -72,10 +71,14 @@ def lookat():
     # look point to the model
     glMatrixMode(GL_MODELVIEW)
     glLoadIdentity()
+
+    # Calculate the camera position based on the current rotation
+    x, z = camera_distance * math.sin(camera_rot_angle), camera_distance * math.cos(camera_rot_angle)
+    y = 5
     gluLookAt(
-        camera_distance * math.sin(camera_rot_angle),
-        5,
-        camera_distance * math.cos(camera_rot_angle),
+        x,
+        y,
+        z,
         0, 0, 0,
         0, 1, 0
     )
@@ -108,10 +111,13 @@ def depth():
 
 
 def fog():
+    # Enable fog
     glEnable(GL_FOG)
+
+    # Set white fog with distance of 15
     glFogf(GL_FOG_MODE, GL_LINEAR)
     glFogfv(GL_FOG_COLOR, (1, 1, 1))
-    glFogf(GL_FOG_START, 0.0)
+    glFogf(GL_FOG_START, 1.0)
     glFogf(GL_FOG_END, 15)
 
 
@@ -124,8 +130,8 @@ def terrainMaterial():
 
 def homeMaterial():
     # Setup material for home
-    glMaterialfv(GL_FRONT, GL_AMBIENT, GLfloat_4(0.125, 0.125, 0.32, 0.0))
-    glMaterialfv(GL_FRONT, GL_DIFFUSE, GLfloat_4(0.875, 0.875, 0.68, 1.0))
+    glMaterialfv(GL_FRONT, GL_AMBIENT, GLfloat_4(0.525, 0.125, 0.32, 0.0))
+    glMaterialfv(GL_FRONT, GL_DIFFUSE, GLfloat_4(0.175, 0.575, 0.38, 1.0))
     glMaterialfv(GL_FRONT, GL_SPECULAR, GLfloat_4(0.0, 0.0, 1.0, 1.0))
     glMaterialfv(GL_FRONT, GL_SHININESS, GLfloat(10.0))
 
@@ -140,6 +146,8 @@ def carMaterial():
 
 def terrain():
     terrainMaterial()
+
+    # Draw all polygons using points from TERRAIN_POINTS
     for polygon in TERRAIN_POLYGONS:
         glBegin(GL_TRIANGLES)
         for point_index in polygon:
@@ -148,21 +156,23 @@ def terrain():
         glEnd()
 
 
-def drawHome():
+def drawHouse():
+    # Set material
     homeMaterial()
 
     glPushMatrix()
 
+    # House's position
     glTranslate(0, 1, -0.5)
-    glutSolidCube(2)
 
-    drawCone(1.5, 1, 16, 8)
+    glutSolidCube(2) # House body
+    drawRoof(1.5, 1.25, 16, 8)
     drawChimney(0.25)
 
     glPopMatrix()
 
 
-def drawCone(radius, height, slices, stacks):
+def drawRoof(radius, height, slices, stacks):
     glPushMatrix()
     glTranslatef(0, 1, 0)
     glRotatef(-90, 1, 0, 0)
@@ -190,36 +200,27 @@ def drawCar():
     glutSolidCube(.5)
     glPopMatrix()
 
-    # wheel
-    glPushMatrix()
-    glTranslatef(0, 0, .25)
+    for z_mul in [-1, 1]:
+        glPushMatrix()
+        # Position the wheel to the left or right
+        glTranslatef(0, 0, 0.25 * z_mul)
 
+        for x_mul in [-1, 1]:
+            # Position the wheel to the front or back
+            glPushMatrix()
+            glTranslatef(.4 * x_mul, -.2, 0)
+            glutSolidTorus(.05, .1, 8, 8)
+            glPopMatrix()
+
+        glPopMatrix()
+
+    # Draw the salon
     glPushMatrix()
-    glTranslatef(-.4, -.2, 0)
-    glutSolidTorus(.05, .1, 8, 8)
+    glTranslate(0, .25, 0)
+    glScalef(1, .5, 1)
+    glutSolidCube(.5)
     glPopMatrix()
 
-    glPushMatrix()
-    glTranslatef(.4, -.2, 0)
-    glutSolidTorus(.05, .1, 8, 8)
-    glPopMatrix()
-
-    glPopMatrix()
-
-    glPushMatrix()
-    glTranslatef(0, 0, -.25)
-
-    glPushMatrix()
-    glTranslatef(-.4, -.2, 0)
-    glutSolidTorus(.05, .1, 8, 8)
-    glPopMatrix()
-
-    glPushMatrix()
-    glTranslatef(.4, -.2, 0)
-    glutSolidTorus(.05, .1, 8, 8)
-    glPopMatrix()
-
-    glPopMatrix()
     glPopMatrix()
 
 
@@ -232,7 +233,7 @@ def display():
     fog()
 
     terrain()
-    drawHome()
+    drawHouse()
     drawCar()
 
     glutSwapBuffers()
@@ -241,6 +242,7 @@ def display():
 def idle_func():
     global car_distance, car_speed
 
+    # Move car between x in [-5; 5]
     car_distance += car_speed
 
     if car_distance > 5:
@@ -254,11 +256,14 @@ def idle_func():
 
 def on_keydown(key, *args):
     global camera_rot_angle, camera_distance
+
+    # Change camera's viewpoint rotation, if user presses horizontal arrows
     if key == GLUT_KEY_RIGHT:
         camera_rot_angle += 0.1
     elif key == GLUT_KEY_LEFT:
         camera_rot_angle -= 0.1
 
+    # Change camera distance, if user presses vertical arrows
     new_distance = camera_distance
 
     if key == GLUT_KEY_UP:
@@ -266,7 +271,8 @@ def on_keydown(key, *args):
     elif key == GLUT_KEY_DOWN:
         new_distance += 0.1
 
-    camera_distance = max(min(new_distance, 15), 5)
+    # Use min and max to hold camera distance within [min_distance; max_distance]
+    camera_distance = max(min(new_distance, max_distance), min_distance)
 
     glutPostRedisplay()
 
