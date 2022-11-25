@@ -64,7 +64,8 @@ def perspective():
     # establish the projection matrix (perspective)
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
-    gluPerspective(40, 1, 4, 40)
+    _,_,width,height = glGetDoublev(GL_VIEWPORT)
+    gluPerspective(45, width / height, 4, 40)
 
 
 def lookat():
