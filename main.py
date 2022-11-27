@@ -5,11 +5,159 @@ from OpenGL.GLUT import *
 import math
 import time
 
-camera_rot_angle = math.pi / 4
-min_distance, max_distance = 3, 15
-camera_distance = (max_distance + min_distance) / 2
-car_distance = 0
-car_speed = 0.1
+
+class Car:
+    def __init__(self, x, y, z, speed, x_lims):
+        self._x = x
+        self._x_lims = x_lims
+        self._y = y
+        self._z = z
+        self._speed = speed
+
+    def move(self):
+        self._x += self._speed
+
+        if self._x < self._x_lims[0]:
+            self._speed = abs(self._speed)
+        if self._x > self._x_lims[1]:
+            self._speed = -abs(self._speed)
+
+    def draw(self):
+        glPushMatrix()
+        glTranslatef(self._x, self._y, self._z)  # Car position
+
+        # Car body
+        glPushMatrix()
+        glScalef(2, .5, 1)
+        glutSolidCube(.5)
+        glPopMatrix()
+
+        for z_mul in [-1, 1]:
+            glPushMatrix()
+            # Position the wheel to the left or right
+            glTranslatef(0, 0, 0.25 * z_mul)
+
+            for x_mul in [-1, 1]:
+                # Position the wheel to the front or back
+                glPushMatrix()
+                glTranslatef(.4 * x_mul, -.2, 0)
+                glutSolidTorus(.05, .1, 8, 8)
+                glPopMatrix()
+
+            glPopMatrix()
+
+        # Draw the salon
+        glPushMatrix()
+        glTranslate(0, .25, 0)
+        glScalef(1, .5, 1)
+        glutSolidCube(.5)
+        glPopMatrix()
+
+        glPopMatrix()
+
+
+car = Car(0, (.5+.1) / 2, 2.5, speed=0.1, x_lims=(-5, 5))
+
+
+class Camera:
+    def __init__(self, center, up, min_distance, max_distance, distance=None, angle=0.0):
+        self._distance = distance if distance is not None else (max_distance + min_distance) / 2
+        self._center = center
+        self._up = up
+        self._angle = angle
+        self._max_distance = max_distance
+        self._min_distance = min_distance
+
+    def lookat(self, point):
+        # Calculate the camera position based on the current rotation
+        x, y, z = self._center
+        x += self._distance * math.sin(self._angle)
+        z += self._distance * math.cos(self._angle)
+
+        gluLookAt(
+            x,
+            y,
+            z,
+            *point,
+            *self._up
+        )
+
+    def rotate(self, d_angle):
+        self._angle += d_angle
+
+    def move(self, distance_change):
+        new_distance = self._distance
+
+        new_distance += distance_change
+
+        self._distance = max(min(new_distance, self._max_distance), self._min_distance)
+
+
+camera = Camera(
+    center=(0, 5, 0),
+    up=(0, 1, 0),
+    min_distance=3, max_distance=15,
+    angle=(math.pi / 4)
+)
+
+
+class Light:
+    def __init__(self, intensity_ambient, intensity_diffuse, intensity_specular):
+        self._intensity_ambient = intensity_ambient
+        self._intensity_diffuse = intensity_diffuse
+        self._intensity_specular = intensity_specular
+
+    def _setup(self, position, id):
+        glLightfv(id, GL_AMBIENT, GLfloat_4(*self._intensity_ambient))
+        glLightfv(id, GL_DIFFUSE, GLfloat_4(*self._intensity_diffuse))
+        glLightfv(id, GL_SPECULAR, GLfloat_4(*self._intensity_specular))
+        glLightfv(id, GL_POSITION, GLfloat_4(*position))
+
+        glEnable(id)
+
+
+class PositionedLight(Light):
+    def __init__(self, intensity_ambient, intensity_diffuse, intensity_specular, position):
+        super().__init__(intensity_ambient, intensity_diffuse, intensity_specular)
+
+        self._position = position
+
+    def setup(self, id):
+        self._setup(self._position, id)
+
+
+class RotatingLight(Light):
+    def __init__(self, intensity_ambient, intensity_diffuse, intensity_specular, center, distance, angle=0.0):
+        super().__init__(intensity_ambient, intensity_diffuse, intensity_specular)
+
+        self._center = center
+        self._distance = distance
+        self._angle = angle
+
+    def setup(self, id):
+        x, y, z, *rest = self._center
+        x += self._distance * math.sin(self._angle)
+        z += self._distance * math.cos(self._angle)
+        self._setup((x, y, z, *rest), id)
+
+    def rotate(self, angle):
+        self._angle += angle
+
+
+main_light = PositionedLight(
+    position=(0.0, 6.0, 3.0, 0.0),
+    intensity_ambient=(0.2, 0.2, 0.2, .0),
+    intensity_diffuse=(0.8, 0.8, 0.8, .0),
+    intensity_specular=(1.0, 1.0, 1.0, 1.0),
+)
+
+secondary_light = RotatingLight(
+    center=(0.0, 2.0, 0.0, 1.0),
+    distance=6,
+    intensity_ambient=(0., 0., 0., 1.0),
+    intensity_diffuse=(0.4, .4, .0, .5),
+    intensity_specular=(.0, .0, .0, 1.0),
+)
 
 
 def terrain_height(x, z):
@@ -73,36 +221,15 @@ def lookat():
     glMatrixMode(GL_MODELVIEW)
     glLoadIdentity()
 
-    # Calculate the camera position based on the current rotation
-    x, z = camera_distance * math.sin(camera_rot_angle), camera_distance * math.cos(camera_rot_angle)
-    y = 5
-    gluLookAt(
-        x,
-        y,
-        z,
-        0, 0, 0,
-        0, 1, 0
-    )
+    camera.lookat((0, 0, 0))
 
 
 def light():
-    # Setup light 0
-    glLightfv(GL_LIGHT0, GL_AMBIENT, GLfloat_4(0.2, 0.2, 0.2, .0))
-    glLightfv(GL_LIGHT0, GL_DIFFUSE, GLfloat_4(0.8, 0.8, 0.8, .0))
-    glLightfv(GL_LIGHT0, GL_SPECULAR, GLfloat_4(1.0, 1.0, 1.0, 1.0))
-    glLightfv(GL_LIGHT0, GL_POSITION, GLfloat_4(0.0, 1, 3.0, 0.0))
-
-    # Setup light 1
-    glLightfv(GL_LIGHT1, GL_AMBIENT, GLfloat_4(0., 0., 0., 1.0))
-    glLightfv(GL_LIGHT1, GL_DIFFUSE, GLfloat_4(0.2, 0.2, 0.2, 0.5))
-    glLightfv(GL_LIGHT1, GL_SPECULAR, GLfloat_4(0.0, 0.0, 0.0, 1.0))
-    glLightfv(GL_LIGHT1, GL_POSITION, GLfloat_4(0.0, 4.0, -2.0))
-
-    # Enable lighting
     glLightModelfv(GL_LIGHT_MODEL_AMBIENT, GLfloat_4(0.2, 0.2, 0.2, 1.0))
     glEnable(GL_LIGHTING)
-    glEnable(GL_LIGHT0)
-    glEnable(GL_LIGHT1)
+
+    main_light.setup(GL_LIGHT0)
+    secondary_light.setup(GL_LIGHT1)
 
 
 def depth():
@@ -191,38 +318,7 @@ def drawChimney(size):
 
 def drawCar():
     carMaterial()
-
-    glPushMatrix()
-    glTranslatef(car_distance, (.5+.1) / 2, 2.5)  # Car position
-
-    # Car body
-    glPushMatrix()
-    glScalef(2, .5, 1)
-    glutSolidCube(.5)
-    glPopMatrix()
-
-    for z_mul in [-1, 1]:
-        glPushMatrix()
-        # Position the wheel to the left or right
-        glTranslatef(0, 0, 0.25 * z_mul)
-
-        for x_mul in [-1, 1]:
-            # Position the wheel to the front or back
-            glPushMatrix()
-            glTranslatef(.4 * x_mul, -.2, 0)
-            glutSolidTorus(.05, .1, 8, 8)
-            glPopMatrix()
-
-        glPopMatrix()
-
-    # Draw the salon
-    glPushMatrix()
-    glTranslate(0, .25, 0)
-    glScalef(1, .5, 1)
-    glutSolidCube(.5)
-    glPopMatrix()
-
-    glPopMatrix()
+    car.draw()
 
 
 def display():
@@ -241,39 +337,24 @@ def display():
 
 
 def idle_func():
-    global car_distance, car_speed
-
-    # Move car between x in [-5; 5]
-    car_distance += car_speed
-
-    if car_distance > 5:
-        car_speed = -abs(car_speed)
-    elif car_distance < -5:
-        car_speed = abs(car_speed)
+    car.move()
+    secondary_light.rotate(0.05)
 
     glutPostRedisplay()
     time.sleep(0.016)
 
 
 def on_keydown(key, *args):
-    global camera_rot_angle, camera_distance
-
     # Change camera's viewpoint rotation, if user presses horizontal arrows
     if key == GLUT_KEY_RIGHT:
-        camera_rot_angle += 0.1
+        camera.rotate(0.1)
     elif key == GLUT_KEY_LEFT:
-        camera_rot_angle -= 0.1
-
-    # Change camera distance, if user presses vertical arrows
-    new_distance = camera_distance
+        camera.rotate(-0.1)
 
     if key == GLUT_KEY_UP:
-        new_distance -= 0.1
+        camera.move(-0.1)
     elif key == GLUT_KEY_DOWN:
-        new_distance += 0.1
-
-    # Use min and max to hold camera distance within [min_distance; max_distance]
-    camera_distance = max(min(new_distance, max_distance), min_distance)
+        camera.move(0.1)
 
     glutPostRedisplay()
 
